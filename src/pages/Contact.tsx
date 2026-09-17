@@ -3,7 +3,7 @@ import { useLang } from '../i18n'
 import { Mail, MessageSquare, CheckCircle2 } from 'lucide-react'
 
 // TODO: Replace with your real WhatsApp business number
-const WA_NUMBER = '6281234567890'
+const WA_NUMBER = '6289697172255'
 
 function WhatsAppIcon({ className }: { className?: string }) {
   return (
