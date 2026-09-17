@@ -13,11 +13,18 @@ export type ArticleMeta = {
 }
 
 function parseFrontmatter(raw: string): { data: Record<string, string>; content: string } {
-  const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/)
+  // trimStart() ensures that invisible characters like BOM (\uFEFF) 
+  // or leading spaces don't break the `^---` regex anchor
+  const cleanRaw = raw.trimStart()
+
+  // Adjusted regex to make the newline after the second `---` optional 
+  // in case the file ends immediately after the frontmatter
+  const match = cleanRaw.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n([\s\S]*))?$/)
+
   if (!match) return { data: {}, content: raw }
 
   const yamlLines = match[1].split('\n')
-  const content = match[2]
+  const content = match[2] || ''
   const data: Record<string, string> = {}
 
   for (const line of yamlLines) {
@@ -25,6 +32,7 @@ function parseFrontmatter(raw: string): { data: Record<string, string>; content:
     if (colonIdx !== -1) {
       const key = line.slice(0, colonIdx).trim()
       let val = line.slice(colonIdx + 1).trim()
+
       // Strip outer quotes if present
       if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
         val = val.slice(1, -1)
@@ -37,6 +45,7 @@ function parseFrontmatter(raw: string): { data: Record<string, string>; content:
 }
 
 // Dynamically import all markdown files in src/content/articles
+// Note: If you are using Vite 5+, you may need to change `query: '?raw'` to `query: 'raw'`
 const articleFiles = import.meta.glob('/src/content/articles/*.md', {
   query: '?raw',
   import: 'default',

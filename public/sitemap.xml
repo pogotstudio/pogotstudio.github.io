@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset
+  xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+>
+
+  <url>
+    <loc>https://pogotstudio.my.id/</loc>
+  </url>
+  <url>
+    <loc>https://pogotstudio.my.id/solutions</loc>
+  </url>
+  <url>
+    <loc>https://pogotstudio.my.id/articles</loc>
+  </url>
+  <url>
+    <loc>https://pogotstudio.my.id/contact</loc>
+  </url>
+  <url>
+    <loc>https://pogotstudio.my.id/articles/bare-metal-vs-rtos</loc>
+  </url>
+  <url>
+    <loc>https://pogotstudio.my.id/articles/pcb-layout-noise</loc>
+  </url>
+  <url>
+    <loc>https://pogotstudio.my.id/articles/battery-life-estimation</loc>
+  </url>
+  <url>
+    <loc>https://pogotstudio.my.id/articles/testable-device-drivers</loc>
+  </url>
+  <url>
+    <loc>https://pogotstudio.my.id/articles/contract-manufacturing-checklist</loc>
+  </url>
+  <url>
+    <loc>https://pogotstudio.my.id/articles/reading-datasheets</loc>
+  </url>
+</urlset>
