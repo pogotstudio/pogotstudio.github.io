@@ -19,8 +19,12 @@ import {
   Tag,
 } from 'lucide-react'
 
+const SITE_URL = 'https://pogotstudio.my.id'
+
 function getArticleSlugFromPath(): string | null {
-  const match = window.location.pathname.match(/^\/articles\/(.+)$/)
+  const pathname = window.location.pathname
+
+  const match = pathname.match(/^\/articles\/([^/]+)\/?$/)
 
   if (!match) {
     return null
@@ -31,6 +35,59 @@ function getArticleSlugFromPath(): string | null {
   } catch {
     return match[1]
   }
+}
+
+function getArticlePath(slug: string): string {
+  return `${import.meta.env.BASE_URL}articles/${encodeURIComponent(slug)}`
+}
+
+function setArticleStructuredData(article: {
+  title: string
+  description: string
+  slug: string
+  date: string
+  image: string
+  author: string
+}) {
+  const id = 'article-structured-data'
+
+  document.getElementById(id)?.remove()
+
+  const script = document.createElement('script')
+
+  script.id = id
+  script.type = 'application/ld+json'
+
+  const articleUrl = `${SITE_URL}${getArticlePath(article.slug)}`
+
+  script.textContent = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: article.title,
+    description: article.description,
+    datePublished: article.date,
+    dateModified: article.date,
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': articleUrl,
+    },
+    author: {
+      '@type': 'Organization',
+      name: article.author,
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'Pogot Studio',
+      url: SITE_URL,
+    },
+    image: article.image ? [article.image] : undefined,
+  })
+
+  document.head.appendChild(script)
+}
+
+function clearArticleStructuredData() {
+  document.getElementById('article-structured-data')?.remove()
 }
 
 export default function Articles({
@@ -47,8 +104,12 @@ export default function Articles({
 
   const [activeIdx, setActiveIdx] = useState(0)
 
-  // Keep the selected article synchronized with browser
-  // Back / Forward navigation.
+  /*
+   * ============================================================
+   * ROUTING
+   * ============================================================
+   */
+
   useEffect(() => {
     const handlePopState = () => {
       setSelectedSlug(getArticleSlugFromPath())
@@ -61,31 +122,107 @@ export default function Articles({
     }
   }, [])
 
-  // Open an article while keeping it inside the SPA.
   const openArticle = (slug: string) => {
-    const path = `/articles/${encodeURIComponent(slug)}`
+    const path = getArticlePath(slug)
 
     if (window.location.pathname !== path) {
       window.history.pushState({}, '', path)
     }
 
     setSelectedSlug(slug)
+
+    window.scrollTo({
+      top: 0,
+      behavior: 'instant',
+    })
   }
 
   const closeArticle = () => {
-    window.history.pushState({}, '', '/')
+    const path = `${import.meta.env.BASE_URL}articles`
+
+    if (window.location.pathname !== path) {
+      window.history.pushState({}, '', path)
+    }
+
     setSelectedSlug(null)
+
+    window.scrollTo({
+      top: 0,
+      behavior: 'instant',
+    })
   }
 
-  // Derive unique tags from loaded markdown articles.
+  /*
+   * ============================================================
+   * SEO
+   * ============================================================
+   */
+
+  const selectedArticle = articles.find(
+    (article) => article.slug === selectedSlug,
+  )
+
+  useEffect(() => {
+    if (!selectedArticle) {
+      setSeo({
+        title: 'Engineering Articles | Pogot Studio',
+        description:
+          'Technical articles about embedded systems, firmware, IoT, hardware, and engineering.',
+        canonical: `${SITE_URL}/articles`,
+        type: 'website',
+      })
+
+      clearArticleStructuredData()
+
+      return
+    }
+
+    const title =
+      lang === 'en'
+        ? selectedArticle.title.en
+        : selectedArticle.title.id
+
+    const description =
+      lang === 'en'
+        ? selectedArticle.summary.en
+        : selectedArticle.summary.id
+
+    const canonical = `${SITE_URL}${getArticlePath(
+      selectedArticle.slug,
+    )}`
+
+    setSeo({
+      title: `${title} | Pogot Studio`,
+      description,
+      canonical,
+      image: selectedArticle.image,
+      type: 'article',
+    })
+
+    setArticleStructuredData({
+      title,
+      description,
+      slug: selectedArticle.slug,
+      date: selectedArticle.date,
+      image: selectedArticle.image,
+      author: selectedArticle.author,
+    })
+  }, [selectedArticle, lang])
+
+  /*
+   * ============================================================
+   * FILTERS
+   * ============================================================
+   */
+
   const tagsEn = [
     'All',
-    ...Array.from(new Set(articles.map((a) => a.tag.en))),
+    ...Array.from(new Set(articles.map((article) => article.tag.en))),
   ]
 
   const tagsId = [
     'Semua',
-    ...Array.from(new Set(articles.map((a) => a.tag.id))),
+    ...Array.from(new Set(articles.map((article) => article.tag.id))),
   ]
 
   const tags = lang === 'en' ? tagsEn : tagsId
@@ -96,51 +233,16 @@ export default function Articles({
     activeIdx === 0
       ? articles
       : articles.filter(
-        (a) =>
-          a.tag.en === selectedTagEn ||
-          a.tag.id === tagsId[activeIdx],
-      )
-
-  const selectedArticle = articles.find(
-    (a) => a.slug === selectedSlug,
-  )
+          (article) =>
+            article.tag.en === selectedTagEn ||
+            article.tag.id === tagsId[activeIdx],
+        )
 
   /*
    * ============================================================
    * ARTICLE DETAIL
    * ============================================================
    */
-
-useEffect(() => {
-  if (!selectedArticle) {
-    setSeo({
-      title: 'Engineering Articles | Pogot Studio',
-      description:
-        'Technical articles about embedded systems, firmware, IoT, hardware, and engineering.',
-      canonical: `${window.location.origin}/articles`,
-    })
-
-    return
-  }
-
-  const title =
-    lang === 'en'
-      ? selectedArticle.title.en
-      : selectedArticle.title.id
-
-  const description =
-    lang === 'en'
-      ? selectedArticle.summary.en
-      : selectedArticle.summary.id
-
-  setSeo({
-    title: `${title} | Pogot Studio`,
-    description,
-    canonical: `${window.location.origin}/articles/${selectedArticle.slug}`,
-    image: selectedArticle.image,
-    type: 'article',
-  })
-}, [selectedArticle, lang])
 
   if (selectedArticle) {
     const title =
@@ -181,8 +283,9 @@ useEffect(() => {
             </span>
           </button>
 
-          {/* Article Header Card */}
+          {/* Article */}
           <article className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-12">
+            {/* Header */}
             <div className="p-6 sm:p-10 border-b border-slate-100">
               <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-500 mb-4">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-[#0284C7]/10 text-[#0284C7] font-bold uppercase tracking-wider">
@@ -233,7 +336,7 @@ useEffect(() => {
               </div>
             )}
 
-            {/* Rendered Markdown Body */}
+            {/* Markdown Body */}
             <div
               className="
                 p-6 sm:p-12
@@ -341,7 +444,7 @@ useEffect(() => {
 
   return (
     <main className="w-full">
-      {/* Header & Category Filters */}
+      {/* Header */}
       <section className="bg-[#EAF2F8] py-12 sm:py-16 px-4 sm:px-6 lg:px-8 border-b border-slate-200">
         <div className="max-w-7xl mx-auto flex flex-col lg:flex-row justify-between lg:items-end gap-8">
           <div>
@@ -362,20 +465,21 @@ useEffect(() => {
             </h1>
           </div>
 
-          {/* Category Filter Pills */}
+          {/* Category Filters */}
           <div className="flex flex-wrap gap-2">
-            {tags.map((tag, i) => {
-              const active = activeIdx === i
+            {tags.map((tag, index) => {
+              const active = activeIdx === index
 
               return (
                 <button
                   key={tag}
                   type="button"
-                  onClick={() => setActiveIdx(i)}
-                  className={`px-4 py-2 rounded-lg font-sans font-semibold text-xs sm:text-sm cursor-pointer transition-all border ${active
-                    ? 'bg-[#0F172A] text-white border-[#0F172A] shadow-xs'
-                    : 'bg-white text-slate-700 border-slate-300 hover:border-slate-400 hover:bg-slate-50'
-                    }`}
+                  onClick={() => setActiveIdx(index)}
+                  className={`px-4 py-2 rounded-lg font-sans font-semibold text-xs sm:text-sm cursor-pointer transition-all border ${
+                    active
+                      ? 'bg-[#0F172A] text-white border-[#0F172A] shadow-xs'
+                      : 'bg-white text-slate-700 border-slate-300 hover:border-slate-400 hover:bg-slate-50'
+                  }`}
                 >
                   {tag}
                 </button>
@@ -385,12 +489,12 @@ useEffect(() => {
         </div>
       </section>
 
-      {/* Featured Article Card */}
+      {/* Featured Article */}
       {featured && (
         <section className="bg-[#F8FAFC] py-10 sm:py-16 px-4 sm:px-6 lg:px-8 border-b border-slate-200">
           <div className="max-w-7xl mx-auto">
             <a
-              href={`/articles/${encodeURIComponent(featured.slug)}`}
+              href={getArticlePath(featured.slug)}
               onClick={(event) => {
                 event.preventDefault()
                 openArticle(featured.slug)
@@ -418,7 +522,9 @@ useEffect(() => {
                     <span className="flex items-center gap-1">
                       <Clock className="w-3.5 h-3.5 text-slate-400" />
                       {featured.readTime}{' '}
-                      {lang === 'en' ? 'min read' : 'menit baca'}
+                      {lang === 'en'
+                        ? 'min read'
+                        : 'menit baca'}
                     </span>
                   </div>
 
@@ -498,15 +604,21 @@ function ArticleCard({
   const { lang } = useLang()
 
   const title =
-    lang === 'en' ? article.title.en : article.title.id
+    lang === 'en'
+      ? article.title.en
+      : article.title.id
 
   const tag =
-    lang === 'en' ? article.tag.en : article.tag.id
+    lang === 'en'
+      ? article.tag.en
+      : article.tag.id
 
   const summary =
-    lang === 'en' ? article.summary.en : article.summary.id
+    lang === 'en'
+      ? article.summary.en
+      : article.summary.id
 
-  const articleUrl = `/articles/${encodeURIComponent(article.slug)}`
+  const articleUrl = getArticlePath(article.slug)
 
   return (
     <a
@@ -569,46 +681,4 @@ function ArticleCard({
       </div>
     </a>
   )
-}
-
-export function setArticleStructuredData(article: {
-  title: string
-  description: string
-  slug: string
-  date: string
-  image: string
-  author: string
-}) {
-  const id = 'article-structured-data'
-
-  document.getElementById(id)?.remove()
-
-  const script = document.createElement('script')
-
-  script.id = id
-  script.type = 'application/ld+json'
-
-  script.textContent = JSON.stringify({
-    '@context': 'https://schema.org',
-    '@type': 'Article',
-    headline: article.title,
-    description: article.description,
-    image: article.image ? [article.image] : undefined,
-    datePublished: article.date,
-    dateModified: article.date,
-    author: {
-      '@type': 'Organization',
-      name: article.author,
-    },
-    publisher: {
-      '@type': 'Organization',
-      name: 'Pogot Studio',
-    },
-    mainEntityOfPage: {
-      '@type': 'WebPage',
-      '@id': `${window.location.origin}/articles/${article.slug}`,
-    },
-  })
-
-  document.head.appendChild(script)
 }
